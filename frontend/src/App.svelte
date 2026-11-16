@@ -41,7 +41,7 @@
 
 <div style="display: flex; flex-direction: column; height: 100vh; width: 99vw;">
   <div class="app-title">
-    <div class="app-heading">Travix S5</div>
+    <div class="app-heading">Travex S5</div>
 
     <div class="tab-bar" aria-label="Main navigation">
       <button
