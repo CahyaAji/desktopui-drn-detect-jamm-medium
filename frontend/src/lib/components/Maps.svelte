@@ -16,17 +16,33 @@
   let map: maplib.Map | null = null;
   let locationMarkerEl = $state<HTMLDivElement | null>(null);
 
-  // MapTiler's OpenStreetMap style. The API key is read from the backend
-  // config (MapsConfig.maptilerKey) and appended to the style URL.
-  const MAPTILER_OPENSTREETMAP_STYLE =
-    "https://api.maptiler.com/maps/openstreetmap/style.json?key=";
+  type MapViewMode = "normal" | "satellite";
+  let viewMode = $state<MapViewMode>("normal");
+  let maptilerKey = "";
 
-  function buildStyle(key?: string): maplib.StyleSpecification | string {
-    if (key) return MAPTILER_OPENSTREETMAP_STYLE + encodeURIComponent(key);
+  // MapTiler styles. The API key is read from the backend config
+  // (MapsConfig.maptilerKey) and appended to the style URL. The satellite
+  // mode uses MapTiler's "hybrid" style (satellite imagery + labels).
+  const MAPTILER_STYLE_URLS: Record<MapViewMode, string> = {
+    normal: "https://api.maptiler.com/maps/openstreetmap/style.json?key=",
+    satellite: "https://api.maptiler.com/maps/hybrid/style.json?key=",
+  };
+
+  function buildStyle(
+    mode: MapViewMode = viewMode,
+    key: string = maptilerKey,
+  ): maplib.StyleSpecification | string {
+    if (key) return MAPTILER_STYLE_URLS[mode] + encodeURIComponent(key);
 
     // Fallback: keep the map instance (and the HTML drone/location markers)
     // functional when no MapTiler key has been configured yet.
     return { version: 8, sources: {}, layers: [] };
+  }
+
+  function setViewMode(mode: MapViewMode) {
+    if (viewMode === mode) return;
+    viewMode = mode;
+    map?.setStyle(buildStyle(mode));
   }
 
   function createLocationMarker(): HTMLDivElement {
@@ -53,12 +69,13 @@
         .then((config) => {
           if (!mapContainer || map) return;
           const mapSettings = config?.maps;
+          maptilerKey = mapSettings?.maptilerKey ?? "";
           const center: [number, number] = mapSettings
             ? [mapSettings.longitude, mapSettings.latitude]
             : [110.44058375436, -7.777392115];
           map = new maplib.Map({
             container: mapContainer,
-            style: buildStyle(mapSettings?.maptilerKey),
+            style: buildStyle(viewMode, maptilerKey),
             center,
             zoom: mapSettings?.zoom ?? 8,
           });
@@ -259,7 +276,24 @@
 </script>
 
 <div class="page-layout">
-  <div bind:this={mapContainer} class="map-container"></div>
+  <div bind:this={mapContainer} class="map-container">
+    <div class="map-view-toggle" role="group" aria-label="Map view mode">
+      <button
+        class:active={viewMode === "normal"}
+        type="button"
+        onclick={() => setViewMode("normal")}
+      >
+        Map
+      </button>
+      <button
+        class:active={viewMode === "satellite"}
+        type="button"
+        onclick={() => setViewMode("satellite")}
+      >
+        Satellite
+      </button>
+    </div>
+  </div>
 </div>
 
 <style>
@@ -278,6 +312,40 @@
     /* width: 100%; */
     height: 100%;
     position: relative;
+  }
+
+  .map-view-toggle {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 10;
+    display: flex;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+    background: rgba(19, 24, 37, 0.9);
+  }
+
+  .map-view-toggle button {
+    border: 0;
+    background: transparent;
+    color: var(--text-secondary);
+    padding: 0.45rem 0.8rem;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.85rem;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
+  }
+
+  .map-view-toggle button:hover {
+    background: var(--bg-panel-hover);
+  }
+
+  .map-view-toggle button.active {
+    background: var(--primary-color);
+    color: var(--bg-dark);
   }
 
   /* Allow jammer rings to expand beyond the marker without clipping */
