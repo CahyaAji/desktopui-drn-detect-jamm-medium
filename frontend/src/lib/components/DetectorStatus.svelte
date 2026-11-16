@@ -140,10 +140,6 @@
         <th scope="row">Gain (dB)</th>
         <td>{status ? status.gainDb : "-"}</td>
       </tr>
-      <tr>
-        <th scope="row">Location</th>
-        <td>-</td>
-      </tr>
     </tbody>
   </table>
 </div>
