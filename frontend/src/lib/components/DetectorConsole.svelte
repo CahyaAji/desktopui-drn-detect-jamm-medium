@@ -99,6 +99,7 @@
     border: 1px solid var(--border-color);
     background: var(--bg-input);
     min-height: 7rem;
+    max-height: 10rem;
     flex: 1;
     overflow: auto;
     font-family: "JetBrains Mono", "Fira Code", "Cascadia Code", "SF Mono",

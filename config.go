@@ -11,8 +11,9 @@ import (
 const configAppName = "Anti Drone System"
 
 type DetectorConfig struct {
-	Address string `json:"address"`
-	Port    int    `json:"port"`
+	Address                 string `json:"address"`
+	Port                    int    `json:"port"`
+	DetectionTimeoutSeconds int    `json:"detectionTimeoutSeconds"`
 }
 
 type MapsConfig struct {
@@ -23,9 +24,8 @@ type MapsConfig struct {
 }
 
 type JammerConfig struct {
-	Address   string  `json:"address"`
-	Port      int     `json:"port"`
-	Threshold float64 `json:"threshold"`
+	Address string `json:"address"`
+	Port    int    `json:"port"`
 }
 
 type AppConfig struct {
@@ -39,8 +39,9 @@ func defaultConfig() AppConfig {
 	return AppConfig{
 		Version: 1,
 		Detector: DetectorConfig{
-			Address: "192.168.1.100",
-			Port:    7,
+			Address:                 "192.168.1.100",
+			Port:                    7,
+			DetectionTimeoutSeconds: 10,
 		},
 		Maps: MapsConfig{
 			Latitude:    -6.2,
@@ -49,9 +50,8 @@ func defaultConfig() AppConfig {
 			MapTilerKey: "",
 		},
 		Jammer: JammerConfig{
-			Address:   "192.168.1.150",
-			Port:      8000,
-			Threshold: 1000,
+			Address: "192.168.1.150",
+			Port:    8000,
 		},
 	}
 }

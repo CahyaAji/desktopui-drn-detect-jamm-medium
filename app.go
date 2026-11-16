@@ -131,13 +131,12 @@ func (a *App) SaveConfig(config AppConfig) error {
 	if config.Detector.Port < 1 || config.Detector.Port > 65535 {
 		return fmt.Errorf("detector port must be between 1 and 65535")
 	}
+	if config.Detector.DetectionTimeoutSeconds < 5 || config.Detector.DetectionTimeoutSeconds > 60 {
+		return fmt.Errorf("detection timeout must be between 5 and 60 seconds")
+	}
 	if config.Jammer.Port < 0 || config.Jammer.Port > 65535 {
 		return fmt.Errorf("jammer port must be between 0 and 65535")
 	}
-	if config.Jammer.Threshold < 0 {
-		return fmt.Errorf("jammer threshold cannot be negative")
-	}
-
 	a.configMu.Lock()
 	defer a.configMu.Unlock()
 	if a.configPath == "" {
@@ -436,6 +435,38 @@ func (a *App) JammerGet(targetURL string) (string, error) {
 	}
 
 	return string(body), nil
+}
+
+// JammerPost sends an HTTP POST request with a JSON body to the jammer and
+// returns the raw response body.
+func (a *App) JammerPost(targetURL string, body string) (string, error) {
+	client := &http.Client{
+		Timeout: 3 * time.Second,
+	}
+
+	req, err := http.NewRequestWithContext(a.ctx, http.MethodPost, targetURL, strings.NewReader(body))
+	if err != nil {
+		return "", fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("network error: %w", err)
+	}
+
+	defer resp.Body.Close()
+
+	if resp.StatusCode >= 400 {
+		return "", fmt.Errorf("HTTP error: %d", resp.StatusCode)
+	}
+
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("failed to read response body: %w", err)
+	}
+
+	return string(respBody), nil
 }
 
 // GetDetections returns a paginated list of detection records from the

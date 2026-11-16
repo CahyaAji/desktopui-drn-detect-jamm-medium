@@ -26,6 +26,7 @@ class DetectorConsoleFilterState {
 
   #detectCount = 0;
   #lastDetectMessageTime = 0;
+  #confirmed = false;
   #started = false;
   #unsubResult: (() => void) | null = null;
 
@@ -47,6 +48,7 @@ class DetectorConsoleFilterState {
 
     if (now - this.#lastDetectMessageTime > this.detectTimeWindowMs) {
       this.#detectCount = 0;
+      this.#confirmed = false;
     }
     this.#lastDetectMessageTime = now;
 
@@ -54,11 +56,14 @@ class DetectorConsoleFilterState {
       this.#detectCount += 1;
     }
 
-    if (this.#detectCount >= Math.max(1, this.detectMaxCount)) {
+    // Once the RESULT count reaches the threshold, stream each following
+    // result to the list one by one instead of batching them.
+    if (this.#confirmed || this.#detectCount >= Math.max(1, this.detectMaxCount)) {
       this.entries = [...this.entries, { ...payload, timestamp: now }];
       if (this.entries.length > this.maxLines) {
         this.entries = this.entries.slice(-this.maxLines);
       }
+      this.#confirmed = true;
       this.#detectCount = 0;
     }
   }

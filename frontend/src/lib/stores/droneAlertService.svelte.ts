@@ -3,12 +3,13 @@
 // Started once below at module load, so it keeps receiving "tcp:result"
 // events and sending alerts even while the user is on another page.
 
-import { GetConfig, JammerGet } from "../../../wailsjs/go/main/App";
+import { untrack } from "svelte";
+import { GetConfig, JammerPost } from "../../../wailsjs/go/main/App";
 import { detectorConsoleFilter, type ResultPayload } from "./detectorConsoleFilter.svelte";
 import { jammerConnection } from "./jammerConnection.svelte";
 
 const FALLBACK_JAMMER_BASE = "http://192.168.17.101:8017";
-const STALE_TIMEOUT_MS = 10_000;
+const DEFAULT_STALE_TIMEOUT_MS = 10_000;
 
 export interface DroneEntry {
   id: string;
@@ -18,16 +19,16 @@ export interface DroneEntry {
   droneRange: number;
 }
 
-async function getJammerAlertUrl(): Promise<string> {
+async function getJammerBase(): Promise<string> {
   try {
     const config = await GetConfig();
     const { address, port } = config.jammer;
     if (!address || port < 1 || port > 65535) {
-      return `${FALLBACK_JAMMER_BASE}/alert`;
+      return FALLBACK_JAMMER_BASE;
     }
-    return `http://${address}:${port}/alert`;
+    return `http://${address}:${port}`;
   } catch {
-    return `${FALLBACK_JAMMER_BASE}/alert`;
+    return FALLBACK_JAMMER_BASE;
   }
 }
 
@@ -42,6 +43,9 @@ class DroneAlertService {
   #droneMap = new Map<string, DroneEntry>();
   #audioCtx: AudioContext | null = null;
   #started = false;
+  #wasEmpty = true;
+  #staleTimeoutMs = DEFAULT_STALE_TIMEOUT_MS;
+  #lastMode = -1;
 
   start() {
     if (this.#started) return;
@@ -55,9 +59,37 @@ class DroneAlertService {
         detectorConsoleFilter.entries;
         this.#syncFromStore();
       });
+
+      $effect(() => {
+        // When switching into AUTO from OFF or ON with an active drone, turn
+        // the jammer on.
+        const mode = jammerConnection.mode;
+        const connected = jammerConnection.connected;
+        const hasDrones = this.drones.length > 0;
+
+        if (connected && mode === 2 && hasDrones && this.#lastMode !== 2) {
+          this.#sendAlert();
+        }
+        this.#lastMode = mode;
+      });
     });
 
+    this.#refreshTimeout();
     setInterval(() => this.#pruneStale(), 1000);
+    setInterval(() => this.#refreshTimeout(), 5_000);
+  }
+
+  async #refreshTimeout() {
+    try {
+      const config = await GetConfig();
+      const seconds = Math.min(
+        60,
+        Math.max(5, config.detector.detectionTimeoutSeconds || 10),
+      );
+      this.#staleTimeoutMs = seconds * 1000;
+    } catch {
+      // Keep the previous value if the config cannot be read.
+    }
   }
 
   #getAudioContext(): AudioContext {
@@ -104,11 +136,40 @@ class DroneAlertService {
     if (jammerConnection.mode !== 2) return; // only in AUTO mode
 
     try {
-      const alertUrl = await getJammerAlertUrl();
-      await JammerGet(alertUrl);
+      const jammerBase = await getJammerBase();
+      const body = JSON.stringify({
+        jamm_900: true,
+        jamm_1500: true,
+        jamm_2400: true,
+        jamm_5200: true,
+        jamm_5800: true,
+        desktop_mode: 2,
+      });
+      await JammerPost(`${jammerBase}/deskcmd`, body);
       this.lastAlertAt = Date.now();
     } catch (error) {
       console.error("[droneAlert] failed to send alert:", error);
+    }
+  }
+
+  async #turnOffJammer() {
+    if (!jammerConnection.connected) return;
+    if (jammerConnection.mode !== 2) return; // only in AUTO mode
+
+    try {
+      const jammerBase = await getJammerBase();
+      const body = JSON.stringify({
+        jamm_900: false,
+        jamm_1500: false,
+        jamm_2400: false,
+        jamm_5200: false,
+        jamm_5800: false,
+        desktop_mode: 2,
+      });
+      await JammerPost(`${jammerBase}/deskcmd`, body);
+      jammerConnection.bandsActive = 0;
+    } catch (error) {
+      console.error("[droneAlert] failed to turn off jammer:", error);
     }
   }
 
@@ -127,8 +188,12 @@ class DroneAlertService {
         lastSeen: payload.timestamp,
         droneRange: payload.droneRange,
       });
-      this.#playWarningSound();
-      this.#sendAlert();
+      untrack(() => {
+        if (jammerConnection.mode === 2) {
+          this.#playWarningSound();
+        }
+        this.#sendAlert();
+      });
     }
   }
 
@@ -144,7 +209,7 @@ class DroneAlertService {
     const now = Date.now();
     let changed = false;
     for (const [id, entry] of this.#droneMap) {
-      if (now - entry.lastSeen > STALE_TIMEOUT_MS) {
+      if (now - entry.lastSeen > this.#staleTimeoutMs) {
         this.#droneMap.delete(id);
         changed = true;
       }
@@ -152,6 +217,12 @@ class DroneAlertService {
     if (changed) {
       this.drones = Array.from(this.#droneMap.values());
     }
+
+    // When the last drone leaves the list, turn the AUTO jammer bands off.
+    if (this.#droneMap.size === 0 && !this.#wasEmpty) {
+      this.#turnOffJammer();
+    }
+    this.#wasEmpty = this.#droneMap.size === 0;
   }
 }
 

@@ -3,7 +3,6 @@ export namespace main {
 	export class JammerConfig {
 	    address: string;
 	    port: number;
-	    threshold: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new JammerConfig(source);
@@ -13,7 +12,6 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.address = source["address"];
 	        this.port = source["port"];
-	        this.threshold = source["threshold"];
 	    }
 	}
 	export class MapsConfig {
@@ -37,6 +35,7 @@ export namespace main {
 	export class DetectorConfig {
 	    address: string;
 	    port: number;
+	    detectionTimeoutSeconds: number;
 	
 	    static createFrom(source: any = {}) {
 	        return new DetectorConfig(source);
@@ -46,6 +45,7 @@ export namespace main {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.address = source["address"];
 	        this.port = source["port"];
+	        this.detectionTimeoutSeconds = source["detectionTimeoutSeconds"];
 	    }
 	}
 	export class AppConfig {

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { GetConfig, JammerGet } from "../../../wailsjs/go/main/App";
+  import { GetConfig, JammerGet, JammerPost } from "../../../wailsjs/go/main/App";
   import { jammerConnection } from "../stores/jammerConnection.svelte";
 
   const FALLBACK_JAMMER_BASE = "http://192.168.17.150:8018";
@@ -8,6 +8,80 @@
   let jammerData = $state("");
   let serverMode = $state<0 | 1 | 2>(0); // 0 = OFF, 1 = ON, 2 = AUTO
   let lastError = $state<string | null>(null);
+
+  type BandKey =
+    | "jamm_900"
+    | "jamm_1500"
+    | "jamm_2400"
+    | "jamm_5200"
+    | "jamm_5800";
+
+  const JAMM_BANDS: { key: BandKey; label: string }[] = [
+    { key: "jamm_900", label: "900 MHz" },
+    { key: "jamm_1500", label: "1.5 GHz" },
+    { key: "jamm_2400", label: "2.4 GHz" },
+    { key: "jamm_5200", label: "5.2 GHz" },
+    { key: "jamm_5800", label: "5.8 GHz" },
+  ];
+
+  // Current band state as reported by GET /jamm_state.
+  let bandStatus = $state<Record<BandKey, boolean>>({
+    jamm_900: false,
+    jamm_1500: false,
+    jamm_2400: false,
+    jamm_5200: false,
+    jamm_5800: false,
+  });
+
+  // Desired band state selected with the band sliders (true = ON).
+  let bandSelection = $state<Record<BandKey, boolean>>({
+    jamm_900: false,
+    jamm_1500: false,
+    jamm_2400: false,
+    jamm_5200: false,
+    jamm_5800: false,
+  });
+
+  function updateBandStatus(jammerJson: Record<string, unknown>) {
+    let activeCount = 0;
+    for (const band of JAMM_BANDS) {
+      const value = jammerJson[band.key];
+      // /state reports each band as 0 (OFF) or 1 (ON).
+      const active = value === 1;
+      bandStatus[band.key] = active;
+      if (active) activeCount++;
+    }
+    jammerConnection.bandsActive = activeCount;
+  }
+
+  async function applyBandSelection() {
+    if (serverMode !== 1) return;
+    lastError = null;
+
+    try {
+      const jammerBase = await getJammerBase();
+      const body = JSON.stringify({
+        jamm_900: bandSelection.jamm_900,
+        jamm_1500: bandSelection.jamm_1500,
+        jamm_2400: bandSelection.jamm_2400,
+        jamm_5200: bandSelection.jamm_5200,
+        jamm_5800: bandSelection.jamm_5800,
+        desktop_mode: 1,
+      });
+      await JammerPost(`${jammerBase}/deskcmd`, body);
+
+      // Reflect the applied state locally for immediate feedback.
+      for (const band of JAMM_BANDS) {
+        bandStatus[band.key] = bandSelection[band.key];
+      }
+      jammerConnection.bandsActive = JAMM_BANDS.filter(
+        (band) => bandSelection[band.key],
+      ).length;
+    } catch (error) {
+      lastError = `Error applying jammer bands: ${error}`;
+      console.error(lastError);
+    }
+  }
 
   async function getJammerBase(): Promise<string> {
     try {
@@ -23,28 +97,31 @@
   }
 
   async function setJammerMode(newMode: 0 | 1 | 2) {
-    let endpoint: string;
-    if (newMode === 1) {
-      endpoint = "/manualon";
-    } else if (newMode === 2) {
-      endpoint = "/auto";
-    } else {
-      endpoint = "/manualoff";
-    }
     lastError = null;
 
     try {
       const jammerBase = await getJammerBase();
-      const resp = await JammerGet(`${jammerBase}${endpoint}`);
-      const respJson = JSON.parse(resp);
-      if (respJson.success == true) {
-        const rawMode: 0 | 1 | 2 = respJson.mode;
-        serverMode = rawMode;
-        jammerConnection.mode = rawMode;
-      } else {
-        lastError = `Failed to set ${newMode}: ${JSON.stringify(respJson)}`;
-        console.error(lastError);
+
+      // OFF / ON / AUTO all switch mode via POST /deskcmd. The individual
+      // band sliders are applied separately; this request only changes
+      // desktop_mode.
+      const body = JSON.stringify({
+        jamm_900: false,
+        jamm_1500: false,
+        jamm_2400: false,
+        jamm_5200: false,
+        jamm_5800: false,
+        desktop_mode: newMode,
+      });
+      await JammerPost(`${jammerBase}/deskcmd`, body);
+      serverMode = newMode;
+      jammerConnection.mode = newMode;
+
+      // Mode changes disable every band locally until the next /state poll.
+      for (const band of JAMM_BANDS) {
+        bandStatus[band.key] = false;
       }
+      jammerConnection.bandsActive = 0;
     } catch (error) {
       lastError = `Error sending ${newMode} command: ${error}`;
       console.error(lastError);
@@ -64,7 +141,7 @@
 
       try {
         const jammerBase = await getJammerBase();
-        jammerData = await JammerGet(`${jammerBase}/jamm_state`);
+        jammerData = await JammerGet(`${jammerBase}/state`);
         const jammerJson = JSON.parse(jammerData);
         if (jammerJson.success == true) {
           jammerConnection.connected = true;
@@ -73,6 +150,7 @@
             serverMode = rawMode;
             jammerConnection.mode = rawMode;
           }
+          updateBandStatus(jammerJson);
         } else {
           jammerConnection.connected = false;
           console.error("Jammer response indicates failure:", jammerJson);
@@ -131,6 +209,52 @@
         disabled={!jammerConnection.connected}
         onclick={() => setJammerMode(2)}>AUTO</button
       >
+    </div>
+  </div>
+  <div class="bands-grid">
+    <div class="band-column">
+      {#each JAMM_BANDS.slice(0, 3) as band}
+        <div class="jam-band-row">
+          <span
+            class="band-led"
+            class:led-active={bandStatus[band.key]}
+          ></span>
+          <span class="jam-band-label">{band.label}</span>
+          <label
+            class="band-slider-toggle"
+            aria-label={`${band.label} state`}
+          >
+            <input type="checkbox" bind:checked={bandSelection[band.key]} />
+            <span class="band-slider-track"></span>
+          </label>
+        </div>
+      {/each}
+    </div>
+    <div class="band-column">
+      {#each JAMM_BANDS.slice(3) as band}
+        <div class="jam-band-row">
+          <span
+            class="band-led"
+            class:led-active={bandStatus[band.key]}
+          ></span>
+          <span class="jam-band-label">{band.label}</span>
+          <label
+            class="band-slider-toggle"
+            aria-label={`${band.label} state`}
+          >
+            <input type="checkbox" bind:checked={bandSelection[band.key]} />
+            <span class="band-slider-track"></span>
+          </label>
+        </div>
+      {/each}
+      <button
+        class="apply-bands-button"
+        type="button"
+        disabled={serverMode !== 1}
+        onclick={applyBandSelection}
+      >
+        Apply
+      </button>
     </div>
   </div>
   {#if lastError}
@@ -272,6 +396,19 @@
     gap: 0.35rem;
   }
 
+  .bands-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin: 0.5rem;
+  }
+
+  .band-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
   .led {
     width: 100%;
     height: 0.35rem;
@@ -318,6 +455,121 @@
   .btn-toggle:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+  }
+
+  .jam-band-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    height: 2.25rem;
+  }
+
+  .jam-band-label {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+
+  .band-led {
+    width: 0.6rem;
+    height: 0.6rem;
+    flex: 0 0 auto;
+    border-radius: 999px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+  }
+
+  .band-led.led-active {
+    background: var(--success-color);
+    border-color: var(--success-color);
+    box-shadow:
+      0 0 6px color-mix(in srgb, var(--success-color) 60%, transparent),
+      0 0 12px color-mix(in srgb, var(--success-color) 30%, transparent);
+  }
+
+  .band-slider-toggle {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+  }
+
+  .band-slider-toggle input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .band-slider-track {
+    width: 40px;
+    height: 20px;
+    background: var(--bg-input);
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    position: relative;
+    transition:
+      background 150ms ease,
+      border-color 150ms ease;
+  }
+
+  .band-slider-track::after {
+    content: "";
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 14px;
+    height: 14px;
+    border-radius: 999px;
+    background: var(--text-muted);
+    transition:
+      transform 150ms ease,
+      background 150ms ease;
+  }
+
+  .band-slider-toggle input:checked + .band-slider-track {
+    background: var(--bg-panel-hover);
+    border-color: var(--border-light);
+  }
+
+  .band-slider-toggle input:checked + .band-slider-track::after {
+    transform: translateX(20px);
+    background: var(--text-secondary);
+  }
+
+  .band-slider-toggle input:focus-visible + .band-slider-track {
+    outline: 2px solid var(--border-light);
+    outline-offset: 2px;
+  }
+
+  .apply-bands-button {
+    width: 100%;
+    height: 2.25rem;
+    padding: 0 0.4rem;
+    background: var(--bg-input);
+    border: 1px solid var(--primary-color);
+    border-radius: 4px;
+    color: var(--primary-color);
+    font: inherit;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition:
+      background-color 0.2s ease,
+      color 0.2s ease;
+  }
+
+  .apply-bands-button:hover:not(:disabled) {
+    background: var(--primary-color);
+    color: var(--bg-dark);
+  }
+
+  .apply-bands-button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    border-color: var(--border-color);
+    color: var(--text-muted);
   }
 
   .jammer-error {

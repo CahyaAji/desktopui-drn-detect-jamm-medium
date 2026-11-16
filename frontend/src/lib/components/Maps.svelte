@@ -109,8 +109,21 @@
     lastSeen: number;
   }
 
-  const STALE_TIMEOUT_MS = 10_000;
+  let markerTimeoutMs = 10_000;
   const droneMarkers = new Map<string, DroneMarker>();
+
+  async function refreshMarkerTimeout() {
+    try {
+      const config = await GetConfig();
+      const seconds = Math.min(
+        60,
+        Math.max(5, config.detector.detectionTimeoutSeconds || 10),
+      );
+      markerTimeoutMs = seconds * 1000;
+    } catch {
+      // Keep the previous value if the config cannot be read.
+    }
+  }
 
   function droneId(payload: ResultPayload): string {
     return payload.serialNumber || payload.model || "unknown";
@@ -178,7 +191,7 @@
   function pruneStaleMarkers() {
     const now = Date.now();
     for (const [id, entry] of droneMarkers) {
-      if (now - entry.lastSeen > STALE_TIMEOUT_MS) {
+      if (now - entry.lastSeen > markerTimeoutMs) {
         entry.marker.remove();
         droneMarkers.delete(id);
       }
@@ -192,15 +205,19 @@
   });
 
   $effect(() => {
-    // Periodic stale pruning
-    const interval = setInterval(pruneStaleMarkers, 1000);
-    return () => clearInterval(interval);
+    // Periodic stale pruning, using the configured detection timeout.
+    refreshMarkerTimeout();
+    const pruneInterval = setInterval(pruneStaleMarkers, 1000);
+    const refreshInterval = setInterval(refreshMarkerTimeout, 5000);
+    return () => {
+      clearInterval(pruneInterval);
+      clearInterval(refreshInterval);
+    };
   });
 
   // --- Jammer signal animation ---
-  // Mode 1 (ON): continuous animation
-  // Mode 2 (AUTO): animate for 10 seconds after each alert, then stop
-  // Mode 0 (OFF): no animation
+  // Any active jammer band: continuous animation
+  // No active jammer bands: no animation
 
   const JAMMER_ANIM_CLASS = "jammer-active";
   const AUTO_ANIM_DURATION_MS = 10_000;
@@ -220,11 +237,11 @@
   }
 
   $effect(() => {
-    const mode = jammerConnection.mode;
+    const bandsActive = jammerConnection.bandsActive;
     const connected = jammerConnection.connected;
 
-    if (!connected || mode === 0) {
-      // OFF or disconnected — stop animation
+    if (!connected || bandsActive === 0) {
+      // No active jammer bands or disconnected — stop animation
       stopJammerAnimation();
       if (jammerAnimTimer) {
         clearTimeout(jammerAnimTimer);
@@ -233,22 +250,11 @@
       return;
     }
 
-    if (mode === 1) {
-      // ON — continuous animation
-      startJammerAnimation();
-      if (jammerAnimTimer) {
-        clearTimeout(jammerAnimTimer);
-        jammerAnimTimer = null;
-      }
-      return;
-    }
-
-    // mode === 2 (AUTO) — stop continuous animation; alerts will trigger it
-    if (mode === 2) {
-      if (!jammerAnimTimer) {
-        stopJammerAnimation();
-      }
-      return;
+    // At least one jammer band is active — continuous animation
+    startJammerAnimation();
+    if (jammerAnimTimer) {
+      clearTimeout(jammerAnimTimer);
+      jammerAnimTimer = null;
     }
   });
 

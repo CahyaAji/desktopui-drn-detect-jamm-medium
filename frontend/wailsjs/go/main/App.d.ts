@@ -14,6 +14,8 @@ export function GetDetections(arg1:number,arg2:number):Promise<Array<main.Detect
 
 export function JammerGet(arg1:string):Promise<string>;
 
+export function JammerPost(arg1:string,arg2:string):Promise<string>;
+
 export function SaveConfig(arg1:main.AppConfig):Promise<void>;
 
 export function Send(arg1:string):Promise<void>;

@@ -26,6 +26,10 @@ export function JammerGet(arg1) {
   return window['go']['main']['App']['JammerGet'](arg1);
 }
 
+export function JammerPost(arg1, arg2) {
+  return window['go']['main']['App']['JammerPost'](arg1, arg2);
+}
+
 export function SaveConfig(arg1) {
   return window['go']['main']['App']['SaveConfig'](arg1);
 }

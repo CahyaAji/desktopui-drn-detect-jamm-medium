@@ -6,7 +6,6 @@
   let config: main.AppConfig | null = null;
   let address = "";
   let port = 0;
-  let threshold = 0;
   let message = "";
   let isSaving = false;
 
@@ -15,7 +14,6 @@
       config = await GetConfig();
       address = config.jammer.address;
       port = config.jammer.port;
-      threshold = config.jammer.threshold;
     } catch (error) {
       message = `Unable to load jammer settings: ${error}`;
     }
@@ -34,13 +32,12 @@
       await SaveConfig(
         new main.AppConfig({
           ...currentConfig,
-          jammer: { address, port, threshold },
+          jammer: { address, port },
         }),
       );
       config = await GetConfig();
       address = config.jammer.address;
       port = config.jammer.port;
-      threshold = config.jammer.threshold;
       message = "Jammer settings saved.";
     } catch (error) {
       message = `Unable to save jammer settings: ${error}`;
@@ -70,18 +67,6 @@
       type="number"
       placeholder="8000"
       bind:value={port}
-    />
-  </div>
-
-  <div class="config-content">
-    <label for="jammer-threshold">Auto Jam Threshold (meters)</label>
-    <input
-      id="jammer-threshold"
-      type="number"
-      placeholder="1000"
-      min="0"
-      step="any"
-      bind:value={threshold}
     />
   </div>
 
