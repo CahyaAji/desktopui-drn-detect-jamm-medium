@@ -2,7 +2,7 @@
   import { GetConfig, JammerGet } from "../../../wailsjs/go/main/App";
   import { jammerConnection } from "../stores/jammerConnection.svelte";
 
-  const FALLBACK_JAMMER_BASE = "http://192.168.17.101:8017";
+  const FALLBACK_JAMMER_BASE = "http://192.168.17.150:8018";
   const poolJammerStatusInterval = 5000; // 5 seconds
 
   let jammerData = $state("");
@@ -64,11 +64,11 @@
 
       try {
         const jammerBase = await getJammerBase();
-        jammerData = await JammerGet(`${jammerBase}/version`);
+        jammerData = await JammerGet(`${jammerBase}/jamm_state`);
         const jammerJson = JSON.parse(jammerData);
         if (jammerJson.success == true) {
           jammerConnection.connected = true;
-          const rawMode: 0 | 1 | 2 = jammerJson.mode;
+          const rawMode: 0 | 1 | 2 = jammerJson.desktop_mode;
           if (rawMode === 0 || rawMode === 1 || rawMode === 2) {
             serverMode = rawMode;
             jammerConnection.mode = rawMode;

@@ -8,7 +8,7 @@ const server = http.createServer((req, res) => {
   res.setHeader("Content-Type", "application/json");
 
   // Handle standard GET requests for the two endpoints
-  if (req.method === "GET" && req.url === "/version") {
+  if (req.method === "GET" && req.url === "/jamm_state") {
     res.writeHead(200);
     return res.end(
       JSON.stringify({
@@ -16,7 +16,12 @@ const server = http.createServer((req, res) => {
         name: "JammerMock",
         firmware: "0.1.0",
         board: "MockBoard",
-        mode: jammModeServeState,
+        desktop_mode: jammModeServeState,
+        jamm_900: true,
+        jamm_1500: true,
+        jamm_2400: true,
+        jamm_5200: false,
+        jamm_5800: true,
       }),
     );
   }
