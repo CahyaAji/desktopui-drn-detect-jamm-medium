@@ -1,5 +1,10 @@
 # Offline Map Guide (for junior developers)
 
+> ⚠️ **Deprecated.** The app now loads maps online via MapTiler using the
+> OpenStreetMap style. The MapTiler API key is configured in the Maps
+> Configuration page and stored in `config.json` under `maps.maptilerKey`.
+> The offline `.pmtiles` flow documented below is kept only for reference.
+
 This document explains how the offline map works end-to-end, which files are
 involved, which functions do what, and how to change/update it. No internet
 connection is needed at runtime — everything the map needs is stored on disk

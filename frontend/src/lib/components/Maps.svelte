@@ -1,7 +1,6 @@
 <script lang="ts">
   import maplib from "maplibre-gl";
   import "maplibre-gl/dist/maplibre-gl.css";
-  import { Protocol } from "pmtiles";
   import {
     detectorConsoleFilter,
     type ResultPayload,
@@ -17,38 +16,17 @@
   let map: maplib.Map | null = null;
   let locationMarkerEl = $state<HTMLDivElement | null>(null);
 
-  // Registers the "pmtiles://" URL scheme once, globally, so MapLibre can
-  // read tiles directly out of a .pmtiles archive via HTTP range requests.
-  const protocol = new Protocol();
-  maplib.addProtocol("pmtiles", protocol.tile);
+  // MapTiler's OpenStreetMap style. The API key is read from the backend
+  // config (MapsConfig.maptilerKey) and appended to the style URL.
+  const MAPTILER_OPENSTREETMAP_STYLE =
+    "https://api.maptiler.com/maps/openstreetmap/style.json?key=";
 
-  // Offline map assets (style.json, .pmtiles, sprite, fonts) are served by
-  // a dedicated Go HTTP server on a fixed port (see mapsServerAddr in
-  // main.go) rather than through Wails' main AssetServer, since that one
-  // proxies unmatched requests to the Vite dev server in `wails dev`
-  // instead of reaching our custom Handler.
-  const MAPS_ORIGIN = "http://localhost:34117";
+  function buildStyle(key?: string): maplib.StyleSpecification | string {
+    if (key) return MAPTILER_OPENSTREETMAP_STYLE + encodeURIComponent(key);
 
-  // MapLibre requires the sprite/glyphs/source URLs in the style to be
-  // absolute, so we fetch style.json and absolutize its root-relative
-  // paths against MAPS_ORIGIN at runtime.
-  async function loadOfflineStyle(): Promise<maplib.StyleSpecification> {
-    const res = await fetch(`${MAPS_ORIGIN}/maps/style.json`);
-    const style = await res.json();
-
-    if (style.sprite) style.sprite = MAPS_ORIGIN + style.sprite;
-    if (style.glyphs) style.glyphs = MAPS_ORIGIN + style.glyphs;
-    for (const source of Object.values(style.sources) as any[]) {
-      if (
-        typeof source.url === "string" &&
-        source.url.startsWith("pmtiles:///")
-      ) {
-        source.url =
-          "pmtiles://" + MAPS_ORIGIN + source.url.slice("pmtiles://".length);
-      }
-    }
-
-    return style;
+    // Fallback: keep the map instance (and the HTML drone/location markers)
+    // functional when no MapTiler key has been configured yet.
+    return { version: 8, sources: {}, layers: [] };
   }
 
   function createLocationMarker(): HTMLDivElement {
@@ -70,8 +48,9 @@
     if (!mapContainer) return;
 
     if (!map) {
-      Promise.all([loadOfflineStyle(), GetConfig().catch(() => null)]).then(
-        ([style, config]) => {
+      GetConfig()
+        .catch(() => null)
+        .then((config) => {
           if (!mapContainer || map) return;
           const mapSettings = config?.maps;
           const center: [number, number] = mapSettings
@@ -79,7 +58,7 @@
             : [110.44058375436, -7.777392115];
           map = new maplib.Map({
             container: mapContainer,
-            style,
+            style: buildStyle(mapSettings?.maptilerKey),
             center,
             zoom: mapSettings?.zoom ?? 8,
           });
@@ -94,8 +73,7 @@
               new maplib.Popup({ offset: 24 }).setText("Configured location"),
             )
             .addTo(map);
-        },
-      );
+        });
     }
 
     return () => {

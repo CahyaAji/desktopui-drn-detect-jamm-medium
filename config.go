@@ -16,9 +16,10 @@ type DetectorConfig struct {
 }
 
 type MapsConfig struct {
-	Latitude  float64 `json:"latitude"`
-	Longitude float64 `json:"longitude"`
-	Zoom      float64 `json:"zoom"`
+	Latitude    float64 `json:"latitude"`
+	Longitude   float64 `json:"longitude"`
+	Zoom        float64 `json:"zoom"`
+	MapTilerKey string  `json:"maptilerKey"`
 }
 
 type JammerConfig struct {
@@ -42,9 +43,10 @@ func defaultConfig() AppConfig {
 			Port:    7,
 		},
 		Maps: MapsConfig{
-			Latitude:  -6.2,
-			Longitude: 106.816666,
-			Zoom:      14,
+			Latitude:    -6.2,
+			Longitude:   106.816666,
+			Zoom:        14,
+			MapTilerKey: "",
 		},
 		Jammer: JammerConfig{
 			Address:   "192.168.1.150",

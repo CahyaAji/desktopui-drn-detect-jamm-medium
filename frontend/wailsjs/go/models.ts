@@ -20,6 +20,7 @@ export namespace main {
 	    latitude: number;
 	    longitude: number;
 	    zoom: number;
+	    maptilerKey: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new MapsConfig(source);
@@ -30,6 +31,7 @@ export namespace main {
 	        this.latitude = source["latitude"];
 	        this.longitude = source["longitude"];
 	        this.zoom = source["zoom"];
+	        this.maptilerKey = source["maptilerKey"];
 	    }
 	}
 	export class DetectorConfig {
