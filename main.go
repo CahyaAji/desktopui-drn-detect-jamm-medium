@@ -17,7 +17,7 @@ func main() {
 
 	// Create application with options
 	err := wails.Run(&options.App{
-		Title:     "Drone-Blocker",
+		Title:     "Travix S5",
 		Width:     1024,
 		Height:    800,
 		MinWidth:  1024,
