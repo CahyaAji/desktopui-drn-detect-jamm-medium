@@ -1,79 +1,84 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
-  import DetectionRecord from './lib/components/DetectionRecord.svelte';
-  import Maps from './lib/components/Maps.svelte';
-  import RightPanel from './lib/components/RightPanel.svelte';
-  import SettingsPage from './lib/components/SettingsPage.svelte';
+  import { onMount } from "svelte";
+  import DetectionRecord from "./lib/components/DetectionRecord.svelte";
+  import Maps from "./lib/components/Maps.svelte";
+  import RightPanel from "./lib/components/RightPanel.svelte";
+  import SettingsPage from "./lib/components/SettingsPage.svelte";
+  import LogoTitle from "./lib/assets/trivex.png";
+  import LogoIcon from "./lib/assets/Trimatra.png";
 
-  type TabName = 'dashboard' | 'record' | 'settings';
+  type TabName = "dashboard" | "record" | "settings";
 
-  let activeTab: TabName = 'dashboard';
+  let activeTab: TabName = "dashboard";
 
   const setTab = (tab: TabName) => {
     activeTab = tab;
-    window.location.hash = tab === 'dashboard' ? '' : `#/${tab}`;
+    window.location.hash = tab === "dashboard" ? "" : `#/${tab}`;
   };
 
   const updatePageFromHash = () => {
-    const hash = window.location.hash.replace(/^#\//, '');
-    if (hash === 'settings') {
-      activeTab = 'settings';
+    const hash = window.location.hash.replace(/^#\//, "");
+    if (hash === "settings") {
+      activeTab = "settings";
       return;
     }
 
-    if (hash === 'record') {
-      activeTab = 'record';
+    if (hash === "record") {
+      activeTab = "record";
       return;
     }
 
-    activeTab = 'dashboard';
+    activeTab = "dashboard";
   };
 
   onMount(() => {
     updatePageFromHash();
-    window.addEventListener('hashchange', updatePageFromHash);
+    window.addEventListener("hashchange", updatePageFromHash);
 
     return () => {
-      window.removeEventListener('hashchange', updatePageFromHash);
+      window.removeEventListener("hashchange", updatePageFromHash);
     };
   });
 </script>
 
 <div style="display: flex; flex-direction: column; height: 100vh; width: 99vw;">
   <div class="app-title">
-    <div class="app-heading">Travex S5</div>
+    <div class="app-heading">
+      <img class="title-icon" src={LogoIcon} alt="Trimatra" />
+      <img class="title-logo" src={LogoTitle} alt="Trivex S5" />
+    </div>
 
     <div class="tab-bar" aria-label="Main navigation">
       <button
-        class:active={activeTab === 'dashboard'}
+        class:active={activeTab === "dashboard"}
         class="nav-button"
         type="button"
-        on:click={() => setTab('dashboard')}
+        on:click={() => setTab("dashboard")}
       >
         Dashboard
       </button>
       <button
-        class:active={activeTab === 'record'}
+        class:active={activeTab === "record"}
         class="nav-button"
         type="button"
-        on:click={() => setTab('record')}
+        on:click={() => setTab("record")}
       >
         Record
       </button>
       <button
-        class:active={activeTab === 'settings'}
+        class:active={activeTab === "settings"}
         class="nav-button"
         type="button"
-        on:click={() => setTab('settings')}
+        on:click={() => setTab("settings")}
       >
         Settings
       </button>
     </div>
   </div>
 
-  {#if activeTab === 'settings'}
+  {#if activeTab === "settings"}
     <SettingsPage />
-  {:else if activeTab === 'record'}
+  {:else if activeTab === "record"}
     <DetectionRecord />
   {:else}
     <div class="app-content">
@@ -86,3 +91,19 @@
     </div>
   {/if}
 </div>
+
+<style>
+  .title-logo {
+    height: 20px;
+    width: auto;
+    margin-top: 10px;
+    margin-left: 2px;
+  }
+  .title-icon {
+    height: 22px;
+    width: auto;
+    margin-top: 8px;
+    margin-left: 10px;
+    background-color: black;
+  }
+</style>
