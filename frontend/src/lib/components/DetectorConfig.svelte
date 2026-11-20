@@ -52,7 +52,7 @@
   <div class="config-heading">📡 Detector Configuration</div>
   <div class="config-content">
     <label for="detector-address">Detector Address</label>
-    <input id="detector-address" type="text" placeholder="192.168.1.100" bind:value={address} />
+    <input id="detector-address" type="text" placeholder="192.168.17.100" bind:value={address} />
   </div>
   <div class="config-content">
     <label for="detector-port">Detector Port</label>

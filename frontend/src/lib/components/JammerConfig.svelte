@@ -55,7 +55,7 @@
     <input
       id="jammer-address"
       type="text"
-      placeholder="192.168.1.150"
+      placeholder="192.168.17.150"
       bind:value={address}
     />
   </div>
@@ -65,7 +65,7 @@
     <input
       id="jammer-port"
       type="number"
-      placeholder="8000"
+      placeholder="8018"
       bind:value={port}
     />
   </div>

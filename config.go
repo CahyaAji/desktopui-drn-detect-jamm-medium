@@ -39,19 +39,19 @@ func defaultConfig() AppConfig {
 	return AppConfig{
 		Version: 1,
 		Detector: DetectorConfig{
-			Address:                 "192.168.1.100",
+			Address:                 "192.168.17.100",
 			Port:                    7,
 			DetectionTimeoutSeconds: 10,
 		},
 		Maps: MapsConfig{
-			Latitude:    -6.2,
-			Longitude:   106.816666,
+			Latitude:    -6.175404983314564,
+			Longitude:   106.82706340345868,
 			Zoom:        14,
-			MapTilerKey: "",
+			MapTilerKey: "QzjxMrj9AyKbV3tkoZoN",
 		},
 		Jammer: JammerConfig{
-			Address: "192.168.1.150",
-			Port:    8000,
+			Address: "192.168.17.150",
+			Port:    8018,
 		},
 	}
 }

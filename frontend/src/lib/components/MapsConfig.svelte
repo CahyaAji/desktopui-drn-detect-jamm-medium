@@ -3,11 +3,13 @@
   import { GetConfig, SaveConfig } from "../../../wailsjs/go/main/App";
   import { main } from "../../../wailsjs/go/models";
 
+  const DEFAULT_MAPTILER_KEY = "QzjxMrj9AyKbV3tkoZoN";
+
   let config: main.AppConfig | null = null;
   let latitude = 0;
   let longitude = 0;
   let zoom = 0;
-  let maptilerKey = "";
+  let maptilerKey = DEFAULT_MAPTILER_KEY;
   let message = "";
   let isSaving = false;
   let showMaptilerKey = false;
@@ -18,7 +20,7 @@
       latitude = config.maps.latitude;
       longitude = config.maps.longitude;
       zoom = config.maps.zoom;
-      maptilerKey = config.maps.maptilerKey;
+      maptilerKey = config.maps.maptilerKey || DEFAULT_MAPTILER_KEY;
     } catch (error) {
       message = `Unable to load map settings: ${error}`;
     }
@@ -44,14 +46,14 @@
       await SaveConfig(
         new main.AppConfig({
           ...currentConfig,
-          maps: { latitude, longitude, zoom, maptilerKey },
+          maps: { latitude, longitude, zoom, maptilerKey: maptilerKey.trim() || DEFAULT_MAPTILER_KEY },
         }),
       );
       config = await GetConfig();
       latitude = config.maps.latitude;
       longitude = config.maps.longitude;
       zoom = config.maps.zoom;
-      maptilerKey = config.maps.maptilerKey;
+      maptilerKey = config.maps.maptilerKey || DEFAULT_MAPTILER_KEY;
       message = "Map settings saved.";
     } catch (error) {
       message = `Unable to save map settings: ${error}`;
@@ -70,7 +72,7 @@
     <input
       id="latitude"
       type="number"
-      placeholder="-6.200000"
+      placeholder="-6.175404983314564"
       step="any"
       bind:value={latitude}
     />
@@ -80,7 +82,7 @@
     <input
       id="longitude"
       type="number"
-      placeholder="106.816666"
+      placeholder="106.82706340345868"
       step="any"
       bind:value={longitude}
     />

@@ -69,7 +69,7 @@
         .then((config) => {
           if (!mapContainer || map) return;
           const mapSettings = config?.maps;
-          maptilerKey = mapSettings?.maptilerKey ?? "";
+          maptilerKey = mapSettings?.maptilerKey || "QzjxMrj9AyKbV3tkoZoN";
           const center: [number, number] = mapSettings
             ? [mapSettings.longitude, mapSettings.latitude]
             : [110.44058375436, -7.777392115];
